@@ -1,0 +1,14 @@
+<div class="row" ng-show="feedItem.jobs.length > 0">
+    <span class="activity-feed-item-recommended-caption">
+        <div ng-if="currentUser">
+            Jobs matching your profile <a href="/jobs/all">Browse all jobs</a>
+        </div>
+        <div ng-if="!currentUser">
+            Top jobs posted on Meed <a href="/jobs/all">Browse all jobs</a>
+        </div>
+    </span>
+    <jobs-list jobs="feedItem.jobs" fixed-size="true" category="all">
+    </jobs-list>
+
+</div>
+

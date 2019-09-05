@@ -1,0 +1,35 @@
+<div class="avatar-wrap">
+    <div class="user-image-badge-{{ ::user.badge }}"></div>
+    <a ng-href="/{{ ::user.handle }}">
+        <img ng-src="{{ ::user.small_image_url}}"/>
+    </a>
+</div>
+<div class="poster-name-and-headline">
+    <p class="name" ng-if="!event">
+        <a ng-href="/{{ ::user.handle }}" class="poster-name">
+            {{ ::user.name }}
+        </a>
+        <span ng-if="feedType == 'story' || feedType == 'comment' || feedType == 'ama'">
+        —  <span class="helper" ng-text-truncate="user.headline" ng-tt-chars-threshold="40" ng-tt-no-toggling>{{ ::user.headline }} </span>
+        </span>
+    </p>
+    <p class="name" ng-if="event">
+        <a ng-href="/{{ ::user.handle }}" class="poster-name">
+            {{ ::user.name }}
+        </a>
+        <span class="action">asked</span>
+
+        <a ng-href="/{{ ::event.user.handle }}" class="poster-name"> {{ ::event.user.name }} </a> — <span class="helper" ng-text-truncate="::event.user.headline" ng-tt-words-threshold="4" ng-tt-no-toggling>{{ ::event.user.headline }} </span>
+    </p>
+
+
+    <div class="story-collections" ng-if="collection">
+                    <a ng-class="collection.private ? 'story-collections-private' : 'story-collections'"
+                       ng-href="{{ collection.url }}">
+
+                        <i ng-if="collection.private" class="fa fa-graduation-cap private"></i>
+                        <i
+                                ng-if="!collection.private" class="fa fa-globe"></i> {{ collection.title }}
+                    </a>
+    </div>
+</div>

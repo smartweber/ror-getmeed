@@ -1,0 +1,22 @@
+<div class="comment-form">
+  <poster-info-user user="user"
+                    feed-type="comment"
+          ></poster-info-user>
+  <form
+    accept-charset="UTF-8"
+    name="commentForm"
+    ng-submit="submitComment(commentForm.$valid)"
+    novalidate="novalidate">
+
+    <textarea
+      id="comment-textarea"
+      name="description"
+      ng-model="commentData.description"
+      required="required"
+      placeholder="Answer or Comment... "
+      ></textarea>
+    <p class="button-wrap">
+      <input type="submit" class="button button-primary medium-small" value="Submit"/>
+    </p>
+  </form>
+</div>

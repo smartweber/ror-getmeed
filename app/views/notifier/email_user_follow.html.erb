@@ -1,0 +1,90 @@
+<%= render 'notifier/email_header' %>
+<center class="wrapper" style="display: table;table-layout: fixed;width: 100%;min-width: 620px;-webkit-text-size-adjust: 100%;-ms-text-size-adjust: 100%;background-color: #fbfbfb">
+
+  <div style="margin:0 auto;max-width:600px;padding:20px 0;text-align:center" align="center">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+      <tbody><tr>
+        <td>
+          <table width="100%" style="padding-bottom:10px;width:100%">
+            <tbody>
+            <tr>
+              <td>
+                <%= render 'notifier/email_logo' %>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <h1 style="border-bottom-color:#f0efef;border-bottom-style:solid;border-bottom-width:1px;font-size:22px;font-weight:600;line-height:22px;margin:10px 0;padding-bottom:30px">You have a new follower on Meed!</h1>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <h4 style="border-bottom-color:#f0efef;border-bottom-style:solid;border-bottom-width:1px;font-size:17px;font-weight:600;line-height:22px;margin:10px 0;color: #888;padding-bottom:30px">Your total followers:  <%= @user.follower_count%></h4>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding-top:30px">
+                <div>
+                  <img src="<%= @follower.small_image_url %>" style="border-radius:50%;min-height:80px;width:80px">
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <h1 style="font-size:36px;margin-bottom:10px"><%= @follower.name %></h1>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <h2 style="color:#999999;font-size:17px;font-weight:normal;margin-bottom:25px;text-transform:none"><%= @follower.headline %></h2>
+              </td>
+            </tr>
+            <% if @follower.follower_count > 0 %>
+                <tr>
+                  <td style="color:#999999;font-size:13px;font-weight:600;padding-top:20px;text-transform:uppercase">
+                    <%= @follower.first_name %>'s Followers: <%= @follower.follower_count %>
+                  </td>
+                </tr>
+            <% end %>
+            <tr>
+              <td style="padding-bottom:10px">
+                <!-- followers -->
+              </td>
+            </tr>
+
+            <tr>
+              <td>
+                <table style="width:100%">
+                  <tbody><tr>
+                    <% if @follower.badge.eql? 'influencer' %>
+                        <td>
+                          <a href=https://getmeed.com/<%= @follower.handle %>" style="background:#3b83f5;border-radius:20px;color:white;font-size:12px;min-height:36px;line-height:40px;margin:auto 5px 5px auto;padding:15px 25px 15px;text-decoration:none;text-transform:uppercase;vertical-align:top;white-space:nowrap" target="_blank">
+                            <span style="vertical-align:top; font-size: 20px;">Follow <%= @follower.first_name %></span>
+                          </a>
+                        </td>
+                    <% else %>
+                        <td>
+                          <a href=https://getmeed.com/" style="background:#3b83f5;border-radius:20px;color:white;font-size:12px;min-height:36px;line-height:40px;margin:auto 5px 5px auto;padding:15px 25px 15px;text-decoration:none;text-transform:uppercase;vertical-align:top;white-space:nowrap" target="_blank">
+                            <span style="vertical-align:top; font-size: 20px;">Engage Followers</span>
+                          </a>
+                        </td>
+                    <% end %>
+
+                  </tr>
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+            </tbody></table>
+        </td>
+      </tr>
+      <tr>
+        <%= render 'notifier/email_footer' %>
+      </tr>
+
+      </tbody></table>
+  </div>
+</center>
+
+</body>
+</html>

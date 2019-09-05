@@ -1,0 +1,31 @@
+<div class="comments">
+    <ul class="comments" ng-if="!showWriteComment">
+        <li>
+            <comment comment="item.comments[0]" currentUser="currentUser"></comment>
+        </li>
+        <li>
+            <comment-actions comment="item.comments[0]" currentUser="currentUser"></comment-actions>
+        </li>
+        <li ng-if="item.comments.length > 1">
+            <hr>
+        </li>
+        <li ng-if="item.comments.length > 1" class="more-comments">
+            <a ng-href="{{ ::item.path }}" >View {{ ::item.comments.length - 1}} more comments </a>
+        </li>
+    </ul>
+    <ul class="comments" ng-if="showWriteComment">
+        <div ng-repeat="comment in item.comments">
+            <li>
+                <comment comment="comment" currentUser="currentUser"></comment>
+            </li>
+            <li>
+                <comment-actions comment="comment" currentUser="currentUser"></comment-actions>
+            </li>
+            <li>
+                <hr>
+            </li>
+        </div>
+    </ul>
+    <comment-form ng-if="currentUser && showWriteComment" item="item" user="currentUser"
+                  class="comment-form"></comment-form>
+</div>

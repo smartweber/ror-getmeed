@@ -1,0 +1,771 @@
+module JobsManager
+  include JobsHelper
+  include UsersManager
+  include CommonHelper
+  include LinkHelper
+  include PhotoManager
+  include QuestionsManager
+  $FEED_PAGE_SIZE = 50
+
+
+  def get_recent_job_for_company(company_id)
+    recent_job = Job.where(company_id: company_id, live: true).order_by([:create_dttm, -1]).first
+    company = Company.find(company_id)
+    stuff_company_job(recent_job, company)
+    recent_job[:author] = EnterpriseUser.find(recent_job[:email])
+    recent_job
+  end
+
+  def get_jobs_for_user(user, allow_applied = true, use_rec = true)
+    if user.blank?
+      return nil
+    end
+    school_handle = get_school_handle_from_email(user.id)
+    jobs = []
+    user_applied_job_ids = get_user_applied_job_ids(user.handle)
+    if use_rec
+      profile = Profile.find(user[:handle])
+      unless profile.blank?
+        # use a very high no for results.
+        jobs = recommendations_by_profile(profile, 500).to_a;
+        if jobs.count() == 0
+          # use regular method
+          user_jobs = UserJobs.find("#{school_handle}_#{user.major_id}")
+          unless user_jobs.blank?
+            job_ids = decode_ids(user_jobs[:job_ids]).reverse
+            jobs = get_jobs_live_by_ids(job_ids)
+          end
+        end
+        user_applied_jobs = get_user_applied_jobs(user.handle)
+        jobs.concat(user_applied_jobs)
+        # adding metadata
+        jobs = get_job_metainfo(jobs)
+      end
+    else
+      user_jobs = UserJobs.find("#{school_handle}_#{user.major_id}")
+      if user_jobs.blank?
+        return nil
+      end
+      job_ids = decode_ids(user_jobs[:job_ids]).reverse
+      jobs = get_jobs_live_by_ids(job_ids)
+    end
+<<<<<<< HEAD
+    user_applied_job_ids = get_user_applied_job_ids(user.handle)
+=======
+>>>>>>> master
+    results = Array.[]
+    jobs.delete_if { |job| (job.test_job? and !user.test_user?) or (!job.schools.include? school_handle) }
+    jobs.each do |job|
+      if user_applied_job_ids.include? job[:_id].to_s
+        unless allow_applied
+          next
+        end
+        job[:applied] = true
+        status = UserJobAppStats.find("#{user[:handle]}_#{job[:_id]}")
+        unless status.blank?
+          job[:status] = status[:user_status]
+        end
+        results << job
+      else
+        results << job
+      end
+    end
+    results
+  end
+
+  def get_jobs_by_company_id(company_id)
+    jobs = Job.where(:company_id => company_id).order_by([:_id, 1])
+    company_ids = jobs.map { |job| job.company_id }
+    results = Array.[]
+    company_map = get_company_map(company_ids)
+    jobs.each do |job|
+      company = company_map[job.company_id]
+      stuff_company_job(job, company)
+      job[:hash] = encode_id(job.id)
+      results << job
+    end
+    results
+  end
+
+  def get_jobs_for_school(school_handle)
+    jobs = Job.where(:live => true).order_by([:create_dttm, -1]).in(schools: school_handle).limit(50)
+    company_ids = jobs.map { |job| job.company_id }
+    results = Array.[]
+    company_map = get_company_map(company_ids)
+    jobs.each do |job|
+      company = company_map[job.company_id]
+      stuff_company_job(job, company)
+      job[:hash] = encode_id(job.id)
+      results << job
+    end
+    results
+  end
+
+  def get_live_jobs_by_company_id(company_id)
+    jobs = Job.where(:company_id => company_id).order_by([:_id, 1])
+    company_ids = jobs.map { |job| job.company_id }
+    results = Array.[]
+    company_map = get_company_map(company_ids)
+    jobs.each do |job|
+      if job.live
+        company = company_map[job.company_id]
+        stuff_company_job(job, company)
+        job[:hash] = encode_id(job.id)
+        results << job
+      end
+    end
+    results
+  end
+
+  def stuff_company_job(job, company)
+    unless company.blank?
+      job.company = company.name.to_s
+      unless company.company_logo.blank?
+        job.company_logo = company.company_logo
+      end
+
+      unless company.culture_video_type.blank?
+        job.culture_video_type = company.culture_video_type
+      end
+
+      unless company.culture_video_id.blank?
+        job.culture_video_id = company.culture_video_id
+      end
+
+      unless company.description.blank?
+        job.company_overview = company.description
+      end
+    end
+  end
+
+  def mark_live_job(job_id)
+    job = Job.find(job_id)
+    job[:live] = true
+    job.save!
+    job[:hash] = encode_id(job_id)
+    job
+  end
+
+  def change_job_app_status(status, job_id, handle)
+    if job_id.blank? or handle.blank?
+      return false
+    end
+
+    unless JobStatusType.contains(status)
+      return false
+    end
+    job_app_status_id = get_job_handle_id(handle, job_id)
+    job_application_status = UserJobAppStats.find(job_app_status_id)
+    if job_application_status.blank?
+      job_application_status = UserJobAppStats.new
+      job_application_status.id = job_app_status_id
+      job_application_status.handle = handle
+    end
+    job_application_status.status = status
+    job_application_status.save
+    true
+  end
+
+  def get_default_jobs(num)
+    jobs = Array.[]
+    default_jobs = Job.order_by([:_id, -1]).limit(num)
+    default_jobs.each do |job|
+      if job[:live]
+        job[:hash] = encode_id(job[:_id])
+        jobs << job
+      end
+
+    end
+    jobs
+  end
+
+  def get_job_by_hash(hash)
+    get_job_by_id(decode_id(hash))
+  end
+
+  def update_job_views (id, handle)
+    job = Job.find(id)
+    unless job.blank?
+      job.inc(:view_count, 1)
+      job.save
+    end
+    unless handle.blank?
+      view_id = get_job_handle_id(handle, id)
+      job_view = JobView.find(view_id)
+      if job_view.blank?
+        job_view = JobView.new
+        job_view.job_id = id
+        job_view.id = view_id
+        job_view.handle = handle
+        job_view.create_dttm = Time.zone.now
+        job_view.save
+      end
+    end
+
+  end
+
+  def is_applied_job_hash (handle, hash)
+    id = decode_id(hash)
+    job_app = JobApplicant.where(:job_id => id).find_by(handle: handle)
+    if job_app.blank?
+      return false
+    end
+    true
+  end
+
+  def get_user_applied_jobs(handle)
+    job_ids = get_user_applied_job_ids(handle)
+    jobs = Job.find(job_ids)
+    return jobs
+  end
+
+  def get_user_applied_job_ids(handle)
+    user_applied_jobs = JobApplicant.where(:handle => handle)
+    if user_applied_jobs.blank?
+      return Array.[]
+    end
+    job_ids = Array.[]
+    user_applied_jobs.each do |job_app|
+      job_ids << job_app.job_id
+    end
+    job_ids
+  end
+
+  def get_user_job_status_map(job_id, handles)
+    result_map = Hash.new
+    ids = Array.new
+    handles.each do |handle|
+      ids << get_job_handle_id(handle, job_id)
+    end
+    app_stats = UserJobAppStats.find(ids)
+    app_stats.each do |job_stats|
+      result_map[job_stats.handle] = job_stats.status
+    end
+    result_map
+  end
+
+  def get_job_by_id(id)
+    job = Job.find(id)
+    unless job.blank?
+      unless job.question_id.blank?
+        question = get_question_for_id(job.question_id)
+        unless question.blank?
+          job[:question] = question
+        end
+      end
+
+      job[:hash] = encode_id(job[:_id])
+      company = Company.find(job.company_id)
+      unless company.blank?
+        stuff_company_job(job, company)
+      end
+
+      unless job.email.blank?
+        enterpriser = EnterpriseUser.find(job.email)
+        job[:author] = enterpriser
+      end
+    end
+    job
+  end
+
+  def get_jobs_by_ids(ids)
+    ids = ids.compact
+    jobs = Job.order_by([:create_dttm, -1]).where(delete_dttm: nil).find(ids)
+    company_ids = jobs.map { |job| job.company_id }
+    question_ids = jobs.map { |job| job.question_id }
+    company_map = get_company_map(company_ids)
+    question_map = get_questions_for_ids (question_ids.compact())
+    jobs.each do |job|
+      job[:hash] = encode_id(job[:_id])
+      unless job.question_id.blank?
+        job[:question] = question_map[job.question_id]
+      end
+      company = company_map[job.company_id]
+      stuff_company_job(job, company)
+    end
+    jobs
+  end
+
+  def get_job_metainfo(jobs)
+    company_ids = jobs.map { |job| job.company_id }
+    question_ids = Array.[]
+    jobs.each do |job|
+      unless job[:question_id].blank?
+        question_ids << job[:question_id]
+      end
+    end
+    company_map = get_company_map(company_ids)
+    question_map = get_questions_map (question_ids)
+    jobs.each do |job|
+      job[:hash] = encode_id(job[:_id])
+      unless job[:question_id].blank?
+        job[:question] = question_map[job[:question_id]]
+      end
+      company = company_map[job.company_id]
+      stuff_company_job(job, company)
+    end
+    return jobs
+  end
+
+  def get_jobs_live_by_ids(ids)
+    ids = ids.compact
+    jobs = Job.where(:live => true, :delete_dttm => nil).order_by([:create_dttm, -1]).find(ids)
+    company_ids = jobs.map { |job| job.company_id }
+    question_ids = jobs.map { |job| job.question_id }
+    company_map = get_company_map(company_ids)
+    question_map = get_questions_map (question_ids.compact)
+    jobs.each do |job|
+      job[:hash] = encode_id(job[:_id])
+      unless job.question_id.blank?
+        job[:question] = question_map[job.question_id]
+      end
+      company = company_map[job.company_id]
+      stuff_company_job(job, company)
+    end
+    jobs
+  end
+
+  def get_jobs_live_by_query_ids(query, ids)
+    # searching for jobs query should be present
+    if query.blank?
+      return
+    end
+    jobs = Job.search(query).results
+    if jobs.blank?
+      return
+    end
+    #filtering and ordering the jobs
+    jobs = jobs.select { |job| (!job.blank?) && job[:live] == true }.
+        sort { |x, y| x <=> y }
+    #jobs = Job.where(:live => true).order_by([:_id, -1]).find(ids)
+    jobs = get_job_metainfo(jobs)
+    jobs
+  end
+
+  def get_jobs_by_hashes(hashes)
+    get_jobs_by_ids(decode_ids(hashes))
+  end
+
+  def apply_job_update_app_stats(job_id, handle)
+    # create a new record for each user in job app stats
+    user_job_app_status = UserJobAppStats.new(
+        _id: handle+"_"+job_id,
+        job_id: job_id,
+        handle: handle,
+        status: "NEW"
+    )
+    user_job_app_status.save()
+  end
+
+  def apply_for_job(user, id, cover_note)
+    if user.blank? or id.blank?
+      return nil
+    end
+    handle = user.handle
+    job = get_job_by_hash(id)
+    if job.blank?
+      job = get_job_by_id(id)
+    end
+
+    if job.blank?
+      return nil
+    end
+
+    is_valid = is_job_valid_for_user(job, user)
+    job_app = JobApplicant.find("#{handle}_#{job.id}")
+    if job_app.blank?
+      job_app = JobApplicant.new
+      job_app.id = get_job_handle_id(handle, job.id)
+      job_app.handle = handle
+      job_app.job_id = job.id
+      job_app.create_dttm = Time.zone.now
+    end
+    unless cover_note.blank?
+      job_app.cover_note = params[:cover_description][:text]
+    end
+
+    if is_valid
+      job_app.applied = true
+    else
+      job_app.pseudo_applied = true
+    end
+
+    job_app.save
+
+    apply_job_update_app_stats(job.id, handle)
+    if job[:email_notifications].blank? or job[:email_notifications]
+      if Rails.env.development?
+        Notifier.email_job_notification(job, job_app, User.find_by(handle: handle)).deliver
+      end
+      if is_valid
+        EmailJobNewApplicantWorker.perform_async(job.id.to_s, handle)
+      end
+
+    end
+    job
+  end
+
+  def admin_all_jobs
+    jobs = Job.all
+    Kaminari.paginate_array(get_jobs_by_ids(jobs.map { |job| job.id })).page(params[:page]).per($FEED_PAGE_SIZE)
+  end
+
+  def pause_job_by_id(job_id)
+    job = Job.find(job_id)
+    if job.blank?
+      return
+    end
+    job[:live] = false
+    job.save!
+    job[:hash] = encode_id(job_id)
+    job
+  end
+
+  def save_job(job_hash, schools, majors)
+    if job_hash[:hidden_id].blank?
+      job = Job.new
+    else
+      job = Job.find(job_hash[:hidden_id])
+    end
+
+    job[:email] = job_hash[:email]
+    job[:title] = job_hash[:title]
+    company = get_or_create_company(job_hash[:company], job_hash[:img_url])
+    job[:company_id] = company.id
+    job[:description] = process_text(job_hash[:description])
+    job[:majors] = majors
+    job[:schools] = schools
+    job[:location] = job_hash[:location]
+    job[:type] = job_hash[:type]
+    job[:live] = false
+    job[:culture_video_url] = job_hash[:culture_video_url]
+    job[:create_dttm] = Time.zone.now
+    unless job_hash[:culture_video_url].blank?
+      matches = job_hash[:culture_video_url].match($youtube_regex)
+      video_type = 'youtube'
+      if matches.blank?
+        matches = job_hash[:culture_video_url].match($vimeo_regex)
+        video_type = 'vimeo'
+      end
+
+      unless matches.blank?
+        job[:culture_video_id] = matches[1]
+        job[:culture_video_type] = video_type
+      end
+    end
+
+    unless job_hash[:url].blank?
+      job[:job_url] = job_hash[:url]
+    end
+    job.save
+    job[:hash] = encode_id job.id.to_s
+    stuff_company_job(job, company)
+    job
+  end
+
+  def update_removed_user_jobs(params, schools, majors)
+    job = get_job_by_id(params[:hidden_id])
+    if job.blank?
+      return
+    end
+
+    removed_schools = Array.[]
+    removed_majors = Array.[]
+    job[:schools].each do |old_school|
+      unless schools.include? old_school
+        removed_schools << old_school
+      end
+    end
+    job[:majors].each do |old_major|
+      unless majors.include? old_major
+        removed_majors << old_major
+      end
+    end
+
+    if !removed_schools.blank? and removed_majors.blank?
+      removed_schools.each do |school_handle|
+        majors.each do |major|
+          id = encode_id(job[:_id])
+          remove_user_job(school_handle, major, id)
+        end
+      end
+
+    end
+
+    if !removed_majors.blank? and removed_schools.blank?
+      schools.each do |school_handle|
+        removed_majors.each do |major|
+          id = encode_id(job[:_id])
+          remove_user_job(school_handle, major, id)
+        end
+      end
+    end
+
+    removed_schools.each do |school_handle|
+      removed_majors.each do |major|
+        id = encode_id(job[:_id])
+        remove_user_job(school_handle, major, id)
+      end
+    end
+
+  end
+
+  def remove_user_job (school_handle, major, id)
+    if school_handle.blank? or major.blank? or id.blank?
+      return
+    end
+
+    user_job_id = get_feed_key(school_handle, major)
+    unless user_job_id.blank?
+      user_job = UserJobs.find(user_job_id)
+      unless user_job.blank?
+        user_job.pull(:job_ids, id)
+        user_job.save
+      end
+    end
+  end
+
+  def insert_new_job(params, schools, majors)
+    unless params[:hidden_id].blank?
+      update_removed_user_jobs(params, schools, majors)
+    end
+    job = save_job(params, schools, majors)
+    update_added_user_jobs(job, schools, majors)
+    #EmailJobConfirmationWorker.perform_async(job[:_id].to_s, job[:email], job[:title])
+    job
+  end
+
+  def update_added_user_jobs(job, schools, majors)
+    if !schools.blank? and !majors.blank?
+      schools.each do |handle|
+        majors.each do |major|
+          user_job_id = get_feed_key(handle, major)
+          unless user_job_id.blank?
+            user_job = UserJobs.find(user_job_id)
+            if user_job.blank?
+              user_job = UserJobs.new(:user_job_id => user_job_id)
+            end
+            id = encode_id(job[:_id])
+            user_job.add_to_set(:job_ids, id)
+            user_job.save
+          end
+        end
+      end
+    end
+  end
+
+  def admin_all_prof_impressions
+    ProfileImpressions.all
+  end
+
+  def recommendations_by_profile(profile, result_count=10)
+    tags = profile[:tags]
+    if tags.blank?
+      tags = []
+    end
+    # boosting works only for integer values so converting the probabilities into integers with precision = 10^-3
+    precision = 100
+    if tags.class() == Array
+      tags = Hash[tags]
+    end
+    tags = tags.each { |k, v| tags[k] = (v * precision).round() }
+    boost = tags.map { |k, v| {value: k, factor: v} }
+    user = User.find_by(handle: profile[:handle])
+    major_key = user.major_id
+    if major_key.blank?
+      major_key = ''
+    end
+    school_handle = get_school_handle_from_email(user.id)
+    if school_handle.blank?
+      school_handle = ''
+    end
+    #applied_job_ids = get_user_applied_job_ids(profile[:handle])
+    #if applied_job_ids.blank?
+    #  applied_job_ids = []
+    #end
+    search_keywords = tags.map{|k,v| "\"#{k}\""}.join(' ')
+    # filter results corresponding to what is available to the school.
+    query = Job.search search_keywords, operator: 'or', execute: false,
+                       where: {live: true,
+                               schools: {all: [school_handle]},
+                               majors: {all: [major_key]},
+                               #_id: {not: applied_job_ids}
+                       },
+                       # matching skills and company name is most important. Then Title then location.
+                       fields: %W(
+                        tags^10
+                        skills^10
+                        title^5
+                        description^2
+                        company_overview
+                       ),
+                       # boosting popular jobs
+                       boost_by: [:view_count],
+                       boost_where: {_all: boost},
+                       limit: result_count;
+    # Using a decay function for the time when the feed item was posted. If the post was done within 7 days, there is
+    # no decay in the score. In 30 days from then the score decays by half.
+    # FUNCTION SCORE APPEARS TO OVERRIDE THE PREVIOUS SCORE SO DISABLING THE TIME OFFSET SCORING
+    # query.body[:query][:function_score].merge!({
+    #                                                functions: [
+    #                                                    exp: {
+    #                                                        create_dttm: {
+    #                                                            scale: '180',
+    #                                                            offset: '60d',
+    #                                                            decay: 0.1
+    #                                                        }
+    #                                                    }
+    #                                                ],
+    #                                                score_mode: "sum",
+    #                                                boost_mode: "sum"
+    #                                            })
+    results = query.execute;
+    return results
+  end
+
+  #company related apis
+  def get_or_create_company(name, company_logo)
+    id = generate_id_from_text(name.downcase)
+    company = Company.find(id)
+    if company.blank?
+      company = Company.new
+      company.name = name
+      company.id = id
+    end
+    unless company_logo.blank?
+      begin
+        upload_hash = Cloudinary::Uploader.upload(company_logo,
+                                                  :crop => :limit, :width => 75, :height => 75,
+                                                  :eager => [
+                                                      {:width => 75, :height => 75,
+                                                       :crop => :thumb, :gravity => :face,
+                                                       :radius => 20, :effect => :sepia},
+                                                      {:width => 100, :height => 100,
+                                                       :crop => :fit, :format => 'png'}
+                                                  ],
+                                                  :tags => ['job', name])
+      rescue Exception => ex
+        $log.error "Error in cloudinating images!: #{ex}"
+      end
+
+      unless upload_hash['url'].blank?
+        company.company_logo = upload_hash['url']
+      end
+    end
+    company.save
+    company
+  end
+
+  def admin_create_company(name, company_logo)
+    id = generate_id_from_text(name.downcase)
+    company = Company.find(id)
+    if company.blank?
+      company = Company.new
+      company.name = name
+      company.id = id
+      company.company_logo = company_logo;
+      company.save
+    end
+    company
+  end
+
+  def get_company_map(company_ids)
+    companies = Company.find(company_ids)
+    company_map = Hash.new
+    companies.each do |company|
+      company_map[company.id] = company
+    end
+    company_map
+  end
+
+  def get_companies(company_ids)
+    companies = Company.find(company_ids)
+    photo_ids = Array.[]
+    companies.each do |company|
+      photo_ids << company.culture_photo_ids
+    end
+    photos = get_photos_by_ids(photo_ids)
+    photo_map = Hash.new
+    photos.each do |photo|
+      photo_map[photo.id] = photo
+    end
+
+    companies.each do |company|
+      company_photos = Array.[]
+      company.culture_photo_ids.each do |photo_id|
+        company_photos << photo_map[photo_id]
+      end
+      company[:photos] = company_photos
+    end
+  end
+
+  def get_company_by_handle(company_handle)
+    Company.find(company_handle)
+  end
+
+  def get_company_by_id(id)
+    company = Company.find(id)
+    unless company.blank?
+      if !company.culture_video_id.blank? and company.culture_video_type.eql? 'youtube' and company.get_cover_image_url.blank?
+        image_url = get_hd_youtube_image_url(company.culture_video_id)
+
+        if image_url.blank?
+          image_url = get_youtube_default_image_url(company.culture_video_id)
+        end
+        company.cover_image_url = image_url
+        company.save
+      end
+      photos = get_photos_by_ids(company.culture_photo_ids)
+      company[:photos] = photos
+    end
+    company
+  end
+
+  def update_company_view_count(company)
+    if company.blank?
+      nil
+    end
+    company = Company.find(company.id)
+    company.inc(:view_count, 1)
+    company.save
+  end
+
+  def get_job_map(job_ids)
+    Hash[Job.find(job_ids).map { |j| ["#{j[:_id]}", j] }]
+  end
+
+  def follow_company(company_id, handle)
+    id = "#{company_id}-#{handle}"
+    company_follow = CompanyFollow.where(:_id => id)
+    if company_follow.blank?
+      company_follow = CompanyFollow.new
+      company_follow.id = id
+      company_follow.time = Time.zone.now
+      company_follow.user_handle = handle
+      company_follow.company_id = company_id
+      company_follow.save
+      Company.where(_id: company_id).inc(:follow_count, 1)
+    end
+    user_follow(company_id, handle)
+    company_follow
+    #EmailFollowCompanyWorker.perform_async(company_id, handle)
+  end
+
+  def unfollow_company(company_id, handle)
+    id = "#{company_id}-#{handle}"
+    company_follow = CompanyFollow.where(:_id => id)
+    unless company_follow.blank?
+      company_follow.delete
+      user_unfollow(company_id, handle)
+    end
+    company_follow
+  end
+
+  def is_user_following_company(user_handle, company_id)
+    user_follows = get_user_follows(user_handle)
+    return false if user_follows.blank?
+    (!user_follows.company_ids.blank? and user_follows.company_ids.include? company_id)
+  end
+
+
+end

@@ -1,0 +1,40 @@
+<div class="tag-nav">
+    <nav>
+        <ul class="story-tags">
+            <li class="heading">
+                <i class="fa fa-line-chart"></i> TRENDING TAGS
+            </li>
+            <li ng-repeat="tag in trendingTags">
+                <a      class="story-tags"
+                        ng-href="/feed/tag/{{ ::tag._id}}"
+                        >
+
+                    <i class="fa fa-{{ ::tag.icon}}"></i> {{ ::tag.title }}
+                </a>
+            </li>
+        </ul>
+        <ul ng-if="currentUser.badge != 'influencer'" class="community-rules">
+            <li class="heading">
+                <i class="fa fa-list"></i> COMMUNITY GUIDELINES
+            </li>
+            <li>
+                <i class="fa fa-dot-circle-o"></i> Please DO NOT post your resumes. Meed is a place to showcase yourself through your work, thoughts, and projects.
+            </li>
+            <li>
+                <i class="fa fa-dot-circle-o"></i>  You must COMPLETE YOUR PROFILE in order to apply to jobs and be seen or contacted by recruiters.
+
+            </li>
+            <li>
+                <i class="fa fa-dot-circle-o"></i> SHARE your in-progress and completed projects, papers, or even thoughts on relevant and trending topics.
+            </li>
+
+            <li>
+                <i class="fa fa-dot-circle-o"></i> Don’t forget to add <em>tags</em> to your posts to maximize your visibility.
+
+            </li>
+
+
+        </ul>
+
+    </nav>
+</div>

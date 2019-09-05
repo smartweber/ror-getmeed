@@ -1,0 +1,31 @@
+<div class="dashboard">
+    <landing ng-if="!loggedIn">
+    </landing>
+    <div  ng-if="loggedIn">
+        <div class="main-wrap">
+            <div class="row">
+                <section id="activity-feed-wrap" class="main">
+                    <site-nav class="side" user-collections="userCollections"></site-nav>
+                    <tag-nav class="side" trending-tags="trendingTags"></tag-nav>
+                    <div class="activity-feed-loader" ng-if="!hasFeedItems">
+                        <loader></loader>
+                    </div>
+
+                    <div class="activity-feed-inner" ng-if="hasFeedItems">
+                        <status-box ng-if="currentUser" user="currentUser" tags="tags" all-collections="allCollections"
+                                    feed-items="feedItems" show-attachments='true'
+                                    placeholder-text="Share news and thoughts, upload original projects and coursework, or ask questions to add credibility to your profile!"
+                                    class="status-form"></status-box>
+                        <activity-feed-references ng-if="allFeedActions.length > 0"
+                                                  actions="allFeedActions"></activity-feed-references>
+                        <activity-feed all-collections="allCollections" tags="tags" has-feed-items="hasFeedItems"
+                                       feed-items="feedItems"></activity-feed>
+                    </div>
+                </section>
+            </div>
+            <div class="row">
+                <site-nav class="bottom" user-collections="userCollections"></site-nav>
+            </div>
+        </div>
+    </div>
+</div>

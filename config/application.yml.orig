@@ -1,0 +1,51 @@
+common: &common
+  facebook:
+    key: 'asdjhasxas'
+    secret : 'xyz'
+  twitter:
+    key: 'asdjhasxas'
+    secret : 'abx'
+
+  sendgrid_username: 'vadrevu'
+  sendgrid_password: 'ResumeLover'
+
+  gmail_client_id: '624172768828-2i0avctjchaods9ck3jvqvd02mj2rf7o.apps.googleusercontent.com'
+  gmail_client_secret : 'nYYPEFTGNY5H-pkXpad5s4sd'
+development:
+  <<: *common
+  hostname: 'localhost'
+  port: '3000'
+  host: 'localhost:3000'
+  recruiter_hostname: 'localhost'
+  aws_access_key_id: 'AKIAI6T3L3DU6GSSR75Q'
+  aws_secret_access_key: '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'
+  embedly_key: '84347754d6984ea5a01a46f491853010'
+  intercom_app_id: 'xcqesob5'
+  intercom_secret: '698999a12d993459ee0063e79378f32dcec5fb38'
+  linkedin_client_id: '755sj5008yofqp'
+  linkedin_client_secret: 'VKssiZ7HQUF76fpB'
+  linkedin_redirect_url: 'http://localhost:3000/auth/linkedin/callback'
+test:
+  <<: *common
+  intercom_app_id: 'xcqesob5'
+  intercom_secret: '698999a12d993459ee0063e79378f32dcec5fb38'
+
+production:
+  <<: *common
+<<<<<<< HEAD
+  hostname: 'qa.getmeed.com'
+  host: 'qa.getmeed.com'
+  recruiter_hostname: 'qa.enterprise.getmeed.com'
+=======
+  hostname: 'getmeed.com'
+  host: 'getmeed.com'
+  recruiter_hostname: 'talent.getmeed.com'
+  blog_hostname: 'blog.getmeed.com'
+>>>>>>> master
+  port: ''
+  embedly_key: '84347754d6984ea5a01a46f491853010'
+  intercom_app_id: '51a4564c6a008d823163382d7abbbbfff07ab03b'
+  intercom_secret: '460005b6b6d32c601d93e22a785c52b2ca4c4f66'
+  linkedin_client_id: '755hesbuosawwa'
+  linkedin_client_secret: 'zi5zyzVx9lXjHEUi'
+  linkedin_redirect_url: 'https://getmeed.com/auth/linkedin/callback'
